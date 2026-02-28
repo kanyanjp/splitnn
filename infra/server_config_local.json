@@ -1,0 +1,21 @@
+{
+  "servers": [
+    {
+      "ipAddr": "127.0.0.1",
+      "user": "ecs-user",
+      "password": "",
+      "phyIntf": "eth0",
+      "infraWorkDir": "/home/ecs-user/work/splitnn/infra",
+      "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23",
+      "kernFuncsToMonitor": [
+        ["setup", "cctr", "chroot_fs_refs"],
+        ["setup", "topo_setup_test", "wireless_nlevent_flush"],
+        ["setup", "topo_setup_test", "fib6_clean_tree"],
+        ["clean", "", "br_vlan_flush"]
+      ],
+      "server_best_bbns_factor": 2.353,
+      "phyicalMachineId": 0,
+      "phyicalMachineNodeCapacity": 15000
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+[tools]
+go = "1.22.12"
+python = "3.11.14"
+uv = "0.10.6"
+
+[env]
+METIS_DLL = "/home/ecs-user/local/lib/libmetis.so"
