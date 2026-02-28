@@ -36,7 +36,7 @@ Before running the experiments, please setup a VM cluster including a master VM 
     "password": "XXXXXXXXXXX",
     "phyIntf": "enp1s0", // The network interface where ipAddr is bounded
     "infraWorkDir": "/home/cnic/split-nn/infra", // The path to the "infra" directory in this project on your VM
-    "dockerImageName": "ponedo/bird-ubuntu22", // The image name of vnodes, can be arbitrary image on dockerhub or your own hub
+    "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23", // The image name of vnodes, can be arbitrary image on dockerhub or your own hub
     "kernFuncsToMonitor":  [
         ["setup", "cctr", "chroot_fs_refs"],
         ["setup", "topo_setup_test", "wireless_nlevent_flush"],
@@ -189,7 +189,7 @@ Before running the experiments, please setup a VM cluster including a master VM 
     
     # ["as", "small"],
     # ["as", "medium"],
-    # ["as", "large"],
+    # NOTE: only small/medium AS datasets are kept in this repo.
     ```
 
 4. Run the batch_test.py script:
