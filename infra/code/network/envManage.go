@@ -25,6 +25,7 @@ type Servers struct {
 type Server struct {
 	IPAddr             string     `json:"ipAddr"`
 	WorkDir            string     `json:"infraWorkDir"`
+	RuntimeDir         string     `json:"runtimeDir"`
 	PhyIntf            string     `json:"phyIntf"`
 	DockerImageName    string     `json:"dockerImageName"`
 	KernFuncsToMonitor [][]string `json:"kernFuncsToMonitor"`
@@ -106,7 +107,7 @@ func ConfigEnvs(
 	server := ServerList[serverID]
 	Operation = operation
 	setLocalPhyIntf(server.PhyIntf)
-	setEnvPaths(server.WorkDir, server.DockerImageName)
+	setEnvPaths(server.WorkDir, server.RuntimeDir, server.DockerImageName)
 	setMntConfig(mntDir)
 	setExecEntries(execConfigFile)
 	setDisableIpv6(disableIpv6)
@@ -235,9 +236,14 @@ func setLocalPhyIntf(value string) {
 	LocalPhyIntfNl, _ = netlink.LinkByName(LocalPhyIntf)
 }
 
-func setEnvPaths(workDir string, dockerImageName string) {
+func setEnvPaths(workDir string, runtimeDir string, dockerImageName string) {
 	WorkDir = workDir
-	TmpDir = path.Join(WorkDir, "tmp")
+	if runtimeDir == "" {
+		// Keep runtime artifacts under repo, not /tmp.
+		TmpDir = path.Join(WorkDir, "runtime")
+	} else {
+		TmpDir = runtimeDir
+	}
 	BinDir = path.Join(WorkDir, "bin")
 	CctrBinPath = path.Join(BinDir, "cctr")
 	CtrLogPath = path.Join(TmpDir, "ctr_log")
@@ -473,8 +479,12 @@ func prepareRootfs(dockerImageName string) {
 	fmt.Printf("prepareScriptPath: %s\n", prepareScriptPath)
 	fmt.Printf("dockerImageName: %s\n", dockerImageName)
 	prepareCommand := exec.Command(
-		"bash", prepareScriptPath, dockerImageName)
-	prepareCommand.Run()
+		"bash", prepareScriptPath, dockerImageName, TmpDir)
+	prepareCommand.Stdout = os.Stdout
+	prepareCommand.Stderr = os.Stderr
+	if err := prepareCommand.Run(); err != nil {
+		log.Fatalf("prepare rootfs failed: %v", err)
+	}
 }
 
 func openLinkLog() error {

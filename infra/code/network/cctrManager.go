@@ -69,12 +69,17 @@ func (nm *CctrNodeManager) SetupNode(nodeId int) error {
 	}
 
 	// Run the Command
-	SetupNodeCommand.Run()
+	if err := SetupNodeCommand.Run(); err != nil {
+		return fmt.Errorf("cctr run for node #%d failed: %w", nodeId, err)
+	}
 
 	pid, err = nm.getNodePid(nodeId)
 	if err != nil {
 		fmt.Printf("Failed to get pid of node #%d: %s\n", nodeId, err)
 		return err
+	}
+	if pid <= 0 {
+		return fmt.Errorf("invalid pid %d for node #%d", pid, nodeId)
 	}
 
 	// Cache pid of the node
@@ -96,6 +101,9 @@ func (nm *CctrNodeManager) GetNodeNetNs(nodeId int) (netns.NsHandle, error) {
 			fmt.Printf("Failed to get pid of node #%d: %s\n", nodeId, err)
 			return -1, err
 		}
+	}
+	if pid <= 0 {
+		return -1, fmt.Errorf("invalid pid %d for node #%d", pid, nodeId)
 	}
 	nodeNetns, err = netns.GetFromPid(pid)
 	if err != nil {

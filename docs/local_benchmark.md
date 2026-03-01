@@ -11,7 +11,7 @@ Install these on the benchmark machine:
 - `make`
 - `python3`
 - `iproute2` (for `ip netns` and `ip link`)
-- `docker`
+- `podman`
 - `skopeo`
 - `umoci`
 - `bpftrace`
@@ -20,7 +20,7 @@ Install these on the benchmark machine:
 Notes:
 
 - `setup`/`clean` require root-level network operations, so commands are run with `sudo`.
-- `prepare_rootfs.sh` uses `docker + skopeo + umoci`; missing any of them can fail setup.
+- `prepare_rootfs.sh` defaults to Podman-managed images (`podman + skopeo + umoci`); missing any of them can fail setup.
 - monitor scripts start `bpftrace`; missing `bpftrace` can fail run initialization.
 
 ## Build and Compile
@@ -50,11 +50,12 @@ ls -l bin/cctr bin/goctr bin/topo_setup_test
 - Machine: local host
 - Binary: `infra/bin/topo_setup_test`
 - Config: `infra/server_config_local.json`
+- Runtime dir: `infra/runtime` (configured via `runtimeDir`)
 - Topologies:
-  - `infra/tmp/topo/grid_20_25.txt` (500 nodes, 1000 edges)
-  - `infra/tmp/topo/grid_25_40.txt` (1000 nodes, 2000 edges)
-  - `infra/tmp/topo/grid_40_50.txt` (2000 nodes, 4000 edges)
-  - `infra/tmp/topo/grid_50_80.txt` (4000 nodes, 8000 edges)
+  - `infra/runtime/topo/grid_20_25.txt` (500 nodes, 1000 edges)
+  - `infra/runtime/topo/grid_25_40.txt` (1000 nodes, 2000 edges)
+  - `infra/runtime/topo/grid_40_50.txt` (2000 nodes, 4000 edges)
+  - `infra/runtime/topo/grid_50_80.txt` (4000 nodes, 8000 edges)
 
 ## Fixed Flags
 
@@ -62,7 +63,7 @@ Unless explicitly testing other options, keep:
 
 - `-a naive`
 - `-d 0`
-- `-N cctr`
+- `-N cctr` (required)
 - `-l ntlbr`
 - `-s server_config_local.json`
 - `-i 0`
@@ -84,6 +85,18 @@ cat server_config_local.json
 Ensure `servers[0].infraWorkDir` points to:
 
 - `/home/ecs-user/work/splitnn/infra`
+  
+Ensure `servers[0].runtimeDir` points to:
+
+- `/home/ecs-user/work/splitnn/infra/runtime`
+
+Generate topology file(s) before running:
+
+```bash
+cd /home/ecs-user/work/splitnn
+mkdir -p infra/runtime/topo
+python3 driver/scripts/topo/generate_grid_topo.py 25 40 infra/runtime/topo/grid_25_40.txt
+```
 
 Run setup:
 
@@ -91,7 +104,7 @@ Run setup:
 cd /home/ecs-user/work/splitnn/infra
 sudo ./bin/topo_setup_test \
   -o setup \
-  -t tmp/topo/grid_25_40.txt \
+  -t runtime/topo/grid_25_40.txt \
   -b 24 \
   -a naive \
   -d 0 \
@@ -105,7 +118,7 @@ Extract key timings:
 
 ```bash
 cd /home/ecs-user/work/splitnn/infra
-rg -n "edgeSum|Node setup time|Bbns setup time|Link setup time|Network operation time" tmp/setup_log.txt
+rg -n "edgeSum|Node setup time|Bbns setup time|Link setup time|Network operation time|Error:" runtime/setup_log.txt
 ```
 
 Run cleanup:
@@ -114,7 +127,7 @@ Run cleanup:
 cd /home/ecs-user/work/splitnn/infra
 sudo ./bin/topo_setup_test \
   -o clean \
-  -t tmp/topo/grid_25_40.txt \
+  -t runtime/topo/grid_25_40.txt \
   -b 24 \
   -a naive \
   -d 0 \

@@ -82,7 +82,7 @@ func parseArgs() {
 	// 	&args.NodeManagerType, "node-mamager", "cctr",
 	// 	"Type of node manager [cctr]")
 	flag.StringVar(
-		&args.NodeManagerType, "N", "cctr",
+		&args.NodeManagerType, "N", "",
 		"Type of node manager [cctr]")
 	// flag.IntVar(
 	// 	&args.DisableIpv6, "disable-ipv6", 0,
@@ -131,16 +131,27 @@ func parseArgs() {
 		os.Exit(1)
 	}
 	if args.NodeManagerType == "" {
-		fmt.Println("Please notify NODE_MANAGER")
+		fmt.Println("Please notify NODE_MANAGER. Use -N cctr")
+		os.Exit(1)
+	}
+	if args.NodeManagerType != "cctr" {
+		fmt.Println("Only cctr is supported in this workflow. Use -N cctr")
 		os.Exit(1)
 	}
 }
 
 var logFile *os.File
 
-func redirectOutput(workDir string, operation string) {
+func redirectOutput(workDir string, runtimeDir string, operation string) {
 	var err error
-	logPath := path.Join(workDir, "tmp", operation+"_log.txt")
+	logBaseDir := runtimeDir
+	if logBaseDir == "" {
+		logBaseDir = path.Join(workDir, "runtime")
+	}
+	if err := os.MkdirAll(logBaseDir, 0755); err != nil {
+		log.Fatalf("Failed to create runtime dir: %v", err)
+	}
+	logPath := path.Join(logBaseDir, operation+"_log.txt")
 	logFile, err = os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatalf("Failed to open file: %v", err)
@@ -249,7 +260,11 @@ func main() {
 	if err != nil {
 		goto clean
 	}
-	redirectOutput(network.ServerList[args.ServerID].WorkDir, args.Operation)
+		redirectOutput(
+			network.ServerList[args.ServerID].WorkDir,
+			network.ServerList[args.ServerID].RuntimeDir,
+			args.Operation,
+		)
 	err = network.ConfigEnvs(
 		args.ServerID, args.Operation,
 		args.MntDir, args.ExecConfigFile,

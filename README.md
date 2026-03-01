@@ -19,7 +19,7 @@ Use this for fast local benchmarking.
 - `make`
 - `python3`
 - `iproute2` (`ip` command)
-- `docker`
+- `podman`
 - `skopeo`
 - `umoci`
 - `bpftrace`
@@ -35,7 +35,8 @@ make
 3. Use local config:
 
 - `infra/server_config_local.json` should point `infraWorkDir` to your local repo path.
-- Topology files are in `infra/tmp/topo/` (for example `grid_20_25.txt`, `grid_25_40.txt`, `grid_40_50.txt`, `grid_50_80.txt`).
+- `runtimeDir` should point to a writable runtime path in-repo (recommended: `infra/runtime`).
+- Topology files are in `infra/runtime/topo/` (for example `grid_20_25.txt`, `grid_25_40.txt`, `grid_40_50.txt`, `grid_50_80.txt`).
 
 4. Run one setup test:
 
@@ -43,7 +44,7 @@ make
 cd infra
 sudo ./bin/topo_setup_test \
   -o setup \
-  -t tmp/topo/grid_25_40.txt \
+  -t runtime/topo/grid_25_40.txt \
   -b 24 \
   -a naive \
   -d 0 \
@@ -59,7 +60,7 @@ sudo ./bin/topo_setup_test \
 cd infra
 sudo ./bin/topo_setup_test \
   -o clean \
-  -t tmp/topo/grid_25_40.txt \
+  -t runtime/topo/grid_25_40.txt \
   -b 24 \
   -a naive \
   -d 0 \
@@ -71,8 +72,8 @@ sudo ./bin/topo_setup_test \
 
 6. Read timing results:
 
-- `infra/tmp/setup_log.txt`: `Node setup time`, `Link setup time`, `Network operation time`
-- `infra/tmp/clean_log.txt`: cleanup timing
+- `infra/runtime/setup_log.txt`: `Node setup time`, `Link setup time`, `Network operation time`
+- `infra/runtime/clean_log.txt`: cleanup timing
 
 ## Minimal Benchmark Playbook
 

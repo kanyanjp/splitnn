@@ -6,6 +6,7 @@
             "password": "XXXXXXXXXX",
             "phyIntf": "enp1s0",
             "infraWorkDir": "/home/cnic/agile-emulator-exp/topo-setup-test/infra",
+            "runtimeDir": "/home/cnic/agile-emulator-exp/topo-setup-test/infra/runtime",
             "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23",
             "kernFuncsToMonitor":  [
                 ["setup", "cctr", "chroot_fs_refs"],

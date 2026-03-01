@@ -6,6 +6,7 @@
       "password": "",
       "phyIntf": "eth0",
       "infraWorkDir": "/home/ecs-user/work/splitnn/infra",
+      "runtimeDir": "/home/ecs-user/work/splitnn/infra/runtime",
       "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23",
       "kernFuncsToMonitor": [
         ["setup", "cctr", "chroot_fs_refs"],
