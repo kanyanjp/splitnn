@@ -2,6 +2,49 @@
 
 This document records the single-machine benchmark workflow used in recent tests.
 
+## Environment Dependencies
+
+Install these on the benchmark machine:
+
+- `go` (1.20+ recommended)
+- `gcc`
+- `make`
+- `python3`
+- `iproute2` (for `ip netns` and `ip link`)
+- `docker`
+- `skopeo`
+- `umoci`
+- `bpftrace`
+- `sudo` privilege
+
+Notes:
+
+- `setup`/`clean` require root-level network operations, so commands are run with `sudo`.
+- `prepare_rootfs.sh` uses `docker + skopeo + umoci`; missing any of them can fail setup.
+- monitor scripts start `bpftrace`; missing `bpftrace` can fail run initialization.
+
+## Build and Compile
+
+Build all `infra` binaries:
+
+```bash
+cd /home/ecs-user/work/splitnn/infra
+make
+```
+
+This compiles:
+
+- `bin/cctr` (from `cctr.c`)
+- `bin/goctr` (from `goctr.c`)
+- `bin/topo_setup_test` (Go program under `infra/code/`)
+
+Sanity check:
+
+```bash
+cd /home/ecs-user/work/splitnn/infra
+ls -l bin/cctr bin/goctr bin/topo_setup_test
+```
+
 ## Scope
 
 - Machine: local host
@@ -30,6 +73,17 @@ Only vary:
 - BBNS number (`-b`)
 
 ## One-Test Procedure
+
+Before the first test, confirm local config path:
+
+```bash
+cd /home/ecs-user/work/splitnn/infra
+cat server_config_local.json
+```
+
+Ensure `servers[0].infraWorkDir` points to:
+
+- `/home/ecs-user/work/splitnn/infra`
 
 Run setup:
 
