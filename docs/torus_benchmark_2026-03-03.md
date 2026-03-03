@@ -21,12 +21,13 @@
 | 2000 | 40x50 | 4000 | 161.61 | 2.08 |
 | 4000 | 50x80 | 8000 | 653.11 | 3.91 |
 
-### New runs on 2026-03-03
+### New runs on 2026-03-03 (current comparison set)
 
 | Nodes | Dims | Links | Setup Node (s) | Setup Link (s) | Setup Total (s) | Setup Wall (s) | Clean Node (s) | Clean Total (s) | Clean Wall (s) |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1600 | 40x40 | 3200 | 5.68 | 45.66 | 51.35 | 54.46 | 1.63 | 1.64 | 3.67 |
-| 4000 | 50x80 | 8000 | 17.14 | 175.97 | 198.00 | 200.08 | 4.13 | 4.13 | 6.17 |
+| 1000 | 25x40 | 2000 | 3.22 | 25.15 | 29.75 | 31.78 | 0.97 | 0.98 | 3.01 |
+| 2000 | 40x50 | 4000 | 6.93 | 61.19 | 68.31 | 106.76 | 2.00 | 2.01 | 4.05 |
+| 4000 | 50x80 | 8000 | 16.71 | 178.24 | 195.31 | 197.36 | 4.47 | 4.47 | 6.51 |
 | 8000 | 80x100 | 16000 | 48.35 | 862.20 | 911.29 | 913.35 | 9.13 | 9.14 | 11.19 |
 
 ## Commands Used
@@ -57,8 +58,9 @@ sudo ./bin/topo_setup_test \
 ## Key Observations
 
 - `setup` is dominated by `Link setup time` at larger scales.
-- From 4k to 8k nodes, `setup total` grows from `198.00s` to `911.29s` (~4.60x).
+- From 4k to 8k nodes, `setup total` grows from `195.31s` to `911.29s` (~4.67x).
 - `clean` remains much smaller and closer to linear growth.
+- 4k row above uses the latest re-run on 2026-03-03.
 
 ## Artifacts
 
