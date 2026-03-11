@@ -364,6 +364,7 @@ On the same four-server set, the currently recorded fat-tree results are:
 - `k=20, b=128`: `56.35s`
 - `k=24, b=48`: `89.11s`
 - `k=26, b=48`: `117.95s`
+- `k=30, b=48`: `195.60s`
 
 Example `driver/server_config.json` pattern for 4 cloned guests:
 
