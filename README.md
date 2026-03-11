@@ -48,6 +48,12 @@ If you only want the important entry points, start here:
 - `docs/horizontal_scaling_splitnn.md`
   Recommended base-image and horizontal-scaling workflow, including remote-driver notes.
 
+- `docs/torus_benchmark_2026-03-03.md`
+  Current torus benchmark summary, including the latest four-server remote practice results.
+
+- `docs/fat_tree_benchmark_2026-03-11.md`
+  Current fat-tree benchmark summary on the validated four-server remote setup.
+
 - `docs/local_benchmark.md`
   Single-machine benchmark workflow.
 

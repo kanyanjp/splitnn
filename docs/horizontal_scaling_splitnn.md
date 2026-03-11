@@ -326,6 +326,44 @@ Only these values should differ between clones:
 
 This makes it easy to scale a base image into multiple remote `server` nodes without managing per-node SSH keys.
 
+## Practical Four-Server Workflow
+
+This was the most useful real-world workflow during validation:
+
+1. prepare one machine image with the same `ecs-user` account and SSH password
+2. clone it horizontally into multiple servers
+3. keep the same repo path on each machine:
+   - `/home/ecs-user/splitnn`
+4. keep the same runtime path on each machine:
+   - `/home/ecs-user/splitnn/infra/tmp`
+5. only change `ipAddr` entries in `driver/server_config.json`
+6. use one control host to run remote setup/clean
+
+Validated remote hosts used during practice included:
+
+- `8.211.30.34`
+- `47.245.146.27`
+- `47.245.148.67`
+- `47.87.129.89`
+- `47.245.151.90`
+
+One corrected four-server torus run used:
+
+- `8.211.30.34`
+- `47.245.148.67`
+- `47.87.129.89`
+- `47.245.151.90`
+
+That corrected `75x80` torus run reached a best verified setup wall time of `49.14s`.
+
+That corrected `80x100` torus run reached a best verified setup wall time of `74.74s`.
+
+On the same four-server set, the currently recorded fat-tree results are:
+
+- `k=20, b=48`: `47.00s`
+- `k=20, b=128`: `56.35s`
+- `k=24, b=48`: `89.08s`
+
 Example `driver/server_config.json` pattern for 4 cloned guests:
 
 ```json
@@ -421,6 +459,14 @@ Current cleanup is optimized for the normal path:
 - rely on kernel namespace teardown to reclaim veth, bridge, and VXLAN devices
 
 This is intended to work for both single-machine and multi-machine runs, because external VXLAN links are moved into SplitNN-managed backbone namespaces before normal execution proceeds.
+
+## Operational Notes From Practice
+
+- `driver/batch_test.py` remote orchestration works for real multi-server torus runs.
+- For current reporting, use the best complete setup wall time seen for each torus scale.
+- If one remote host behaves abnormally, replacing that host and re-running can materially improve the result.
+- Normal cleanup removes `bbns*` fast, but `infra/tmp` logs remain unless explicitly deleted.
+- When a large run is interrupted, stale `bpftrace` or monitor scripts may need manual cleanup or a host reboot.
 
 ## Current Known State
 
