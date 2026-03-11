@@ -4,21 +4,23 @@ SplitNN is a virtual network construction framework for benchmarking large-scale
 
 ## Recommended Usage
 
-The current recommended workflow is:
+The current recommended path is remote benchmark on multiple cloned servers:
 
-1. prepare one Linux guest or server as the base environment
-2. install SplitNN runtime dependencies there
-3. clone that base image horizontally into multiple guests
-4. keep the same guest username/password across all clones
-5. assign different IP addresses to each clone
-6. use `driver/batch_test.py` from one control host to push topology, execute remote setup/clean, and collect logs
+1. prepare one Linux server or VM as the base environment
+2. install runtime and build dependencies there
+3. clone that base image horizontally into multiple machines
+4. keep the same repo path, username, and password on all machines
+5. edit `driver/server_config.json`
+6. edit `driver/batch_test.py` benchmark options
+7. run `driver/batch_test.py` from one control host
 
-This is the best match for the current codebase because:
+This matches the current codebase because:
 
-- `driver/` already implements remote orchestration over SSH
-- each guest is treated as one `server`
-- result collection is already wired around `infra/tmp/`
-- normal cleanup is optimized around process kill plus namespace deletion
+- `driver/` is the real remote orchestration entry
+- each remote machine is treated as one `server`
+- result collection is wired around remote `infra/tmp/`
+- cleanup is optimized around process kill plus namespace deletion
+- benchmark docs in `docs/` already reflect this workflow
 
 ## Key Files
 
@@ -46,7 +48,7 @@ If you only want the important entry points, start here:
   Node/container manager used by the current workflow.
 
 - `docs/horizontal_scaling_splitnn.md`
-  Recommended base-image and horizontal-scaling workflow, including remote-driver notes.
+  Concise remote benchmark guide for cloned multi-server setups.
 
 - `docs/torus_benchmark_2026-03-03.md`
   Current torus benchmark summary, including the latest four-server remote practice results.
@@ -72,7 +74,7 @@ If you only want the important entry points, start here:
 
 Use this when you have multiple cloned VMs or servers and want to operate them remotely from one control node.
 
-### 1. Prepare each guest
+### 1. Prepare each remote machine
 
 Install runtime dependencies on every guest:
 
@@ -83,7 +85,7 @@ Install runtime dependencies on every guest:
 - `bpftrace`
 - `sudo`
 
-If you also want each guest to build `infra`, install:
+Remote benchmark with the current `driver/batch_test.py` also needs remote build capability:
 
 - `git`
 - `golang`
@@ -99,7 +101,7 @@ If you also want each guest to build `infra`, install:
 - one strong shared password
 - password SSH enabled on all cloned guests
 
-Only guest IP addresses need to differ.
+Only IP addresses need to differ.
 
 ### 3. Configure remote servers
 
@@ -121,7 +123,17 @@ Recommended setting:
 
 This matches the current remote result collection behavior in `driver/batch_test.py`.
 
-### 4. Run the remote batch driver
+### 4. Edit Benchmark Options
+
+Before running, update `driver/batch_test.py`:
+
+- set `var_options["t"]` to the topology list you want
+- set `var_options["b"]` to the benchmark value you want
+- keep `p = 0`
+
+Do not use `-p > 0` for benchmark runs. The current parallel link setup path is buggy.
+
+### 5. Run the remote batch driver
 
 From the control host:
 
@@ -133,6 +145,8 @@ python3 batch_test.py
 The driver will:
 
 - connect to all configured guests
+- run `sync_code.sh`
+- run remote `make`
 - send `server_config.json`
 - generate and partition topology
 - send each sub-topology to the target guest
@@ -140,7 +154,7 @@ The driver will:
 - run remote `clean`
 - collect logs back into `driver/raw_results/`
 
-### 5. Read remote results
+### 6. Read remote results
 
 Collected outputs are stored under:
 

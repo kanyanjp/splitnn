@@ -10,12 +10,12 @@
 
 ## Remote Server Set
 
-The current validated four-server set is:
+The latest validated four-server set is:
 
-- `8.211.30.34`
-- `47.245.148.67`
-- `47.87.129.89`
-- `47.245.151.90`
+- `47.87.129.103`
+- `8.220.75.44`
+- `8.209.103.4`
+- `47.87.132.233`
 
 ## Current Verified Results
 
@@ -27,6 +27,7 @@ Only completed and validated runs are recorded below.
 | `k=20` | 128 | 56.35 | slower than `b=48` |
 | `k=24` | 48 | 89.11 | stable rerun result on the current server set |
 | `k=26` | 48 | 117.95 | current best verified result |
+| `k=28` | 48 | 180.94 | stable rerun result on the latest server set |
 | `k=30` | 48 | 195.60 | stable rerun result on the current server set |
 
 ## Latest k=20 Result (`b=48`)
@@ -74,8 +75,17 @@ Only completed and validated runs are recorded below.
 | `47.87.129.89` | 6467 | 6.46 | 186.98 | 129.49 | 193.76 |
 | `47.245.151.90` | 6467 | 6.51 | 188.00 | 130.71 | 194.83 |
 
+## Latest k=28 Result (`b=48`)
+
+| Server | edgeSum | Node Setup (s) | Link Setup (s) | ExternalLinkOp (s) | Setup Total (s) |
+|---|---:|---:|---:|---:|---:|
+| `47.87.129.103` | 5566 | 5.15 | 148.45 | 105.12 | 162.57 |
+| `8.220.75.44` | 4168 | 5.15 | 114.64 | 81.29 | 128.74 |
+| `8.209.103.4` | 4726 | 4.64 | 127.27 | 95.63 | 141.29 |
+| `47.87.132.233` | 6142 | 5.06 | 166.45 | 124.24 | 180.94 |
+
 ## Notes
 
 - `Node setup time` is small in these runs; the dominant cost is `Link setup time`.
 - `ExternalLinkOp time` is much larger than in torus runs, which is the main reason fat-tree is slower.
-- `k=26` and `k=30` now both have completed reruns on the current four-server set and are recorded above.
+- `k=26`, `k=28`, and `k=30` all have completed reruns and are recorded above.

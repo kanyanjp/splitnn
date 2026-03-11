@@ -1,484 +1,162 @@
-# SplitNN Horizontal Scaling Workflow
+# SplitNN Remote Benchmark Guide
 
-This document records the practical workflow for preparing one guest as a base image, cloning it horizontally, and running `splitnn` remotely across multiple guest nodes.
+This document is the shortest practical path for running remote benchmarks on multiple cloned servers.
 
 ## Scope
 
-- Guest expansion model: one prepared base image cloned into multiple guests
-- Guest OS: Debian 12 cloud image
-- Verified shape: 2 VMs on one host
-- Verified guest IPs:
-  - `192.168.249.11`
-  - `192.168.249.12`
-- Verified guest user:
-  - user: `ccds`
-  - password: `splitnn`
+- one control host
+- multiple remote Linux servers or VMs
+- password SSH
+- remote `setup/clean` driven by `driver/batch_test.py`
 
-`splitnn` treats each VM as a `server`. The emulated topology nodes are still created inside each VM through namespaces, veth pairs, bridges, VXLAN devices, and `cctr`.
+## What Actually Runs
 
-## Reference Environment
+- control host runs `driver/batch_test.py`
+- each remote machine is one `server`
+- each remote machine runs `infra/bin/topo_setup_test`
+- logs are written under remote `infra/tmp/`
+- results are collected back to `driver/raw_results/`
 
-One validated way to create the initial base image is with `cloud-hypervisor`, but the remote SplitNN workflow below is not specific to `cloud-hypervisor`. Any method that gives you multiple Linux guests with stable IPs, SSH access, and the same filesystem layout works.
+## Remote Machine Requirements
 
-## Example Layout
+Each remote machine needs:
 
-Host-side helper files are stored under:
+- the repo at the same path
+- `sudo`
+- `git`
+- `go`
+- `gcc`
+- `make`
+- `python3`
+- `iproute2`
+- `podman`
+- `skopeo`
+- `umoci`
+- `bpftrace`
 
-- `/home/ccds/vms/ch/setup_host_net.sh`
-- `/home/ccds/vms/ch/build_seed_images.sh`
-- `/home/ccds/vms/ch/launch_vm.sh`
-- `/home/ccds/vms/ch/seed-data/`
+Recommended repo path:
 
-Repository path on the host:
+- `/home/ecs-user/splitnn`
 
-- `/home/ccds/work/splitnn`
+Recommended runtime path:
 
-Recommended repo path inside each guest:
+- `/home/ecs-user/splitnn/infra/tmp`
 
-- `/home/ccds/work/splitnn`
+## Shared SSH Setup
 
-## Example Base-Image Preparation With Cloud Hypervisor
+Use one shared account and one shared password on all cloned machines.
 
-If you use `cloud-hypervisor` for the initial base-image workflow, install and verify it on the host:
+The current remote driver uses Paramiko password SSH, so each machine should allow:
 
-```bash
-mise use -g aqua:cloud-hypervisor/cloud-hypervisor
-mise x -- cloud-hypervisor --version
-```
+- same `user`
+- same `password`
+- `PasswordAuthentication yes`
 
-Verify KVM access for the current user:
+## Required Config
 
-```bash
-sg kvm -c 'id && [ -r /dev/kvm ] && [ -w /dev/kvm ] && echo kvm-ok'
-```
+Edit [server_config.json](/home/ecs-user/splitnn/driver/server_config.json).
 
-Prepare the host bridge and tap devices:
-
-```bash
-/home/ccds/vms/ch/setup_host_net.sh
-```
-
-This creates:
-
-- bridge: `chbr0`
-- bridge IP: `192.168.249.1/24`
-- tap devices: `chtap0`, `chtap1`
-
-## Example Guest Image Preparation
-
-Download the Debian cloud image once:
-
-```bash
-mkdir -p /home/ccds/vms/ch
-cd /home/ccds/vms/ch
-curl -fL --retry 3 -o debian-12-genericcloud-amd64.qcow2 \
-  https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2
-```
-
-Create fresh overlay disks:
-
-```bash
-cd /home/ccds/vms/ch
-qemu-img create -f qcow2 -F qcow2 -b debian-12-genericcloud-amd64.qcow2 vm1.qcow2
-qemu-img create -f qcow2 -F qcow2 -b debian-12-genericcloud-amd64.qcow2 vm2.qcow2
-```
-
-Build cloud-init seed images:
-
-```bash
-/home/ccds/vms/ch/build_seed_images.sh
-```
-
-The current seed data configures:
-
-- `splitnn-vm1` on `192.168.249.11/24`
-- `splitnn-vm2` on `192.168.249.12/24`
-- default gateway `192.168.249.1`
-- `ccds/splitnn`
-- password SSH enabled
-- passwordless `sudo`
-
-## Example Guest Boot
-
-Start VM1:
-
-```bash
-/home/ccds/vms/ch/launch_vm.sh vm1 vm1.qcow2 cidata-vm1.img chtap0
-```
-
-Start VM2:
-
-```bash
-/home/ccds/vms/ch/launch_vm.sh vm2 vm2.qcow2 cidata-vm2.img chtap1
-```
-
-Useful logs:
-
-- `/home/ccds/vms/ch/vm1.serial.log`
-- `/home/ccds/vms/ch/vm2.serial.log`
-- `/home/ccds/vms/ch/vm1.ch.log`
-- `/home/ccds/vms/ch/vm2.ch.log`
-
-Verify connectivity from the host:
-
-```bash
-ping -c 1 192.168.249.11
-ping -c 1 192.168.249.12
-ssh ccds@192.168.249.11
-ssh ccds@192.168.249.12
-```
-
-## Configure Guest Packages
-
-For guest package installation, use the Tsinghua mirror:
-
-```bash
-cat >/etc/apt/sources.list <<'EOF'
-deb https://mirrors.tuna.tsinghua.edu.cn/debian bookworm main contrib non-free non-free-firmware
-deb https://mirrors.tuna.tsinghua.edu.cn/debian bookworm-updates main contrib non-free non-free-firmware
-deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bookworm-security main contrib non-free non-free-firmware
-EOF
-apt-get update
-```
-
-If the host builds `splitnn`, the guests only need runtime packages:
-
-```bash
-apt-get install -y iproute2 podman skopeo umoci sudo rsync bpftrace
-```
-
-If you also want to build inside the guest:
-
-```bash
-apt-get install -y git golang gcc make python3 python3-pip
-```
-
-## Recommended SplitNN Workflow
-
-The simplest workflow is:
-
-1. Build on the host.
-2. Generate topology on the host.
-3. Sync the repo or `infra/` subtree to the guest.
-4. Run `topo_setup_test` inside the guest.
-
-This avoids installing the full build toolchain in every VM.
-
-## Build On Host
-
-```bash
-cd /home/ccds/work/splitnn/infra
-make
-```
-
-This produces:
-
-- `infra/bin/cctr`
-- `infra/bin/goctr`
-- `infra/bin/topo_setup_test`
-
-## Generate 30x30 Torus
-
-Use the existing `grid` generator. It already wraps both dimensions, so it is a torus generator in practice.
-
-```bash
-cd /home/ccds/work/splitnn
-mkdir -p infra/runtime/topo
-python3 driver/scripts/topo/generate_grid_topo.py 30 30 infra/runtime/topo/grid_30_30.txt
-```
-
-## Sync To Guest
-
-Example sync to VM1:
-
-```bash
-rsync -av /home/ccds/work/splitnn/ ccds@192.168.249.11:/home/ccds/work/splitnn/
-```
-
-Sync to VM2 if needed:
-
-```bash
-rsync -av /home/ccds/work/splitnn/ ccds@192.168.249.12:/home/ccds/work/splitnn/
-```
-
-## Guest Config For Single-VM Infra Test
-
-Inside the guest, adjust the local config to match the guest interface and path. A minimal example:
-
-```json
-{
-  "servers": [
-    {
-      "ipAddr": "127.0.0.1",
-      "user": "ccds",
-      "password": "",
-      "phyIntf": "ens3",
-      "infraWorkDir": "/home/ccds/work/splitnn/infra",
-      "runtimeDir": "/home/ccds/work/splitnn/infra/runtime",
-      "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23",
-      "kernFuncsToMonitor": [
-        ["setup", "cctr", "chroot_fs_refs"],
-        ["setup", "topo_setup_test", "wireless_nlevent_flush"],
-        ["setup", "topo_setup_test", "fib6_clean_tree"],
-        ["clean", "", "br_vlan_flush"]
-      ],
-      "server_best_bbns_factor": 2.353,
-      "phyicalMachineId": 0,
-      "phyicalMachineNodeCapacity": 15000
-    }
-  ]
-}
-```
-
-Important field:
-
-- `phyIntf` must be `ens3` in these VMs, not `eth0`
-
-## Run 30x30 Torus In One Guest
-
-Setup:
-
-```bash
-cd /home/ccds/work/splitnn/infra
-sudo ./bin/topo_setup_test \
-  -o setup \
-  -t runtime/topo/grid_30_30.txt \
-  -b 24 \
-  -a naive \
-  -d 0 \
-  -N cctr \
-  -l ntlbr \
-  -s server_config_local.json \
-  -i 0
-```
-
-Inspect timing:
-
-```bash
-cd /home/ccds/work/splitnn/infra
-rg -n "edgeSum|Node setup time|Bbns setup time|Link setup time|Network operation time|Error:" runtime/setup_log.txt
-```
-
-Cleanup:
-
-```bash
-cd /home/ccds/work/splitnn/infra
-sudo ./bin/topo_setup_test \
-  -o clean \
-  -t runtime/topo/grid_30_30.txt \
-  -b 24 \
-  -a naive \
-  -d 0 \
-  -N cctr \
-  -l ntlbr \
-  -s server_config_local.json \
-  -i 0
-```
-
-## Multi-Guest Driver Use
-
-For `driver/server_config.json`, set the VM addresses and guest NIC name:
-
-- VM1: `192.168.249.11`
-- VM2: `192.168.249.12`
-- `user`: `ccds`
-- `password`: `splitnn`
-- `phyIntf`: `ens3`
-
-If both VMs run on the same host and you do not want to model multiple physical machines, set:
-
-- `phyicalMachineId: 0`
-
-for both entries.
-
-## Base Image For Horizontal Cloning
-
-If you want to take one prepared guest OS as a base image and clone it into 4 guests for remote testing:
-
-1. prepare one guest fully
-2. install runtime packages inside the guest
-3. clone the guest disk/image 4 times
-4. assign different guest IP addresses
-5. keep the same guest username/password on all 4 guests
-6. update only `ipAddr` and `phyicalMachineId` fields in `driver/server_config.json`
-
-Recommended common guest settings across all clones:
-
-- same repo path, for example `/home/ccds/work/splitnn`
-- same guest user
-- same SSH password
-- same NIC name, for example `ens3`
-- same runtime package set
-
-Only these values should differ between clones:
+Important fields:
 
 - `ipAddr`
-- hostname
-- any physical-machine grouping you want to model via `phyicalMachineId`
+- `user`
+- `password`
+- `phyIntf`
+- `infraWorkDir`
+- `runtimeDir`
+- `phyicalMachineId`
 
-## Password SSH For Remote Driver
+Recommended values for cloned servers:
 
-`driver/util/remote.py` uses Paramiko password SSH, so a simple and reproducible setup is:
+- `phyIntf`: `eth0`
+- `infraWorkDir`: `/home/ecs-user/splitnn/infra`
+- `runtimeDir`: `/home/ecs-user/splitnn/infra/tmp`
 
-- enable `PasswordAuthentication yes` in `sshd`
-- create one strong random password for the guest user
-- keep that password identical across all cloned guests
+## Important Code Reality
 
-This makes it easy to scale a base image into multiple remote `server` nodes without managing per-node SSH keys.
+Current [batch_test.py](/home/ecs-user/splitnn/driver/batch_test.py) does more than just run remote setup:
 
-## Practical Four-Server Workflow
+- it calls `./sync_code.sh master`
+- it runs remote `make`
+- it pulls the container image remotely
 
-This was the most useful real-world workflow during validation:
+So remote machines must be able to build, not just execute.
 
-1. prepare one machine image with the same `ecs-user` account and SSH password
-2. clone it horizontally into multiple servers
-3. keep the same repo path on each machine:
-   - `/home/ecs-user/splitnn`
-4. keep the same runtime path on each machine:
-   - `/home/ecs-user/splitnn/infra/tmp`
-5. only change `ipAddr` entries in `driver/server_config.json`
-6. use one control host to run remote setup/clean
+Also note:
 
-Validated remote hosts used during practice included:
+- `var_options["t"]` in [batch_test.py](/home/ecs-user/splitnn/driver/batch_test.py) is not pre-filled for your benchmark cases
+- `b` in [batch_test.py](/home/ecs-user/splitnn/driver/batch_test.py) is not set to the benchmark values by default
+- `-p > 0` is currently buggy in parallel link setup and should not be used for benchmark runs
 
-- `8.211.30.34`
-- `47.245.146.27`
-- `47.245.148.67`
-- `47.87.129.89`
-- `47.245.151.90`
+For stable benchmark runs, keep:
 
-One corrected four-server torus run used:
+- `p = 0`
 
-- `8.211.30.34`
-- `47.245.148.67`
-- `47.87.129.89`
-- `47.245.151.90`
+## Minimal Remote Benchmark Workflow
 
-That corrected `75x80` torus run reached a best verified setup wall time of `49.14s`.
+1. prepare all remote machines with the same repo path and dependencies
+2. edit [server_config.json](/home/ecs-user/splitnn/driver/server_config.json)
+3. edit `var_options` in [batch_test.py](/home/ecs-user/splitnn/driver/batch_test.py)
+4. run the driver from the control host
+5. collect results from `driver/raw_results/`
 
-That corrected `80x100` torus run reached a best verified setup wall time of `74.74s`.
+## Typical `batch_test.py` Changes
 
-On the same four-server set, the currently recorded fat-tree results are:
+Set the topologies you actually want in `var_options["t"]`.
 
-- `k=20, b=48`: `47.00s`
-- `k=20, b=128`: `56.35s`
-- `k=24, b=48`: `89.11s`
-- `k=26, b=48`: `117.95s`
-- `k=30, b=48`: `195.60s`
+Examples:
 
-Example `driver/server_config.json` pattern for 4 cloned guests:
+- torus: `["grid", "40", "50"]`
+- torus: `["grid", "50", "80"]`
+- fat-tree: `["clos", "20"]`
+- fat-tree: `["clos", "24"]`
 
-```json
-{
-  "servers": [
-    {
-      "ipAddr": "10.0.0.11",
-      "user": "ecs-user",
-      "password": "REPLACE_WITH_SHARED_STRONG_PASSWORD",
-      "phyIntf": "eth0",
-      "infraWorkDir": "/home/ecs-user/splitnn/infra",
-      "runtimeDir": "/home/ecs-user/splitnn/infra/tmp",
-      "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23",
-      "kernFuncsToMonitor": [
-        ["setup", "cctr", "chroot_fs_refs"],
-        ["setup", "topo_setup_test", "wireless_nlevent_flush"],
-        ["setup", "topo_setup_test", "fib6_clean_tree"],
-        ["clean", "", "br_vlan_flush"]
-      ],
-      "server_best_bbns_factor": 2.353,
-      "phyicalMachineId": 0,
-      "phyicalMachineNodeCapacity": 15000
-    },
-    {
-      "ipAddr": "10.0.0.12",
-      "user": "ecs-user",
-      "password": "REPLACE_WITH_SHARED_STRONG_PASSWORD",
-      "phyIntf": "eth0",
-      "infraWorkDir": "/home/ecs-user/splitnn/infra",
-      "runtimeDir": "/home/ecs-user/splitnn/infra/tmp",
-      "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23",
-      "kernFuncsToMonitor": [
-        ["setup", "cctr", "chroot_fs_refs"],
-        ["setup", "topo_setup_test", "wireless_nlevent_flush"],
-        ["setup", "topo_setup_test", "fib6_clean_tree"],
-        ["clean", "", "br_vlan_flush"]
-      ],
-      "server_best_bbns_factor": 2.353,
-      "phyicalMachineId": 0,
-      "phyicalMachineNodeCapacity": 15000
-    },
-    {
-      "ipAddr": "10.0.0.13",
-      "user": "ecs-user",
-      "password": "REPLACE_WITH_SHARED_STRONG_PASSWORD",
-      "phyIntf": "eth0",
-      "infraWorkDir": "/home/ecs-user/splitnn/infra",
-      "runtimeDir": "/home/ecs-user/splitnn/infra/tmp",
-      "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23",
-      "kernFuncsToMonitor": [
-        ["setup", "cctr", "chroot_fs_refs"],
-        ["setup", "topo_setup_test", "wireless_nlevent_flush"],
-        ["setup", "topo_setup_test", "fib6_clean_tree"],
-        ["clean", "", "br_vlan_flush"]
-      ],
-      "server_best_bbns_factor": 2.353,
-      "phyicalMachineId": 1,
-      "phyicalMachineNodeCapacity": 15000
-    },
-    {
-      "ipAddr": "10.0.0.14",
-      "user": "ecs-user",
-      "password": "REPLACE_WITH_SHARED_STRONG_PASSWORD",
-      "phyIntf": "eth0",
-      "infraWorkDir": "/home/ecs-user/splitnn/infra",
-      "runtimeDir": "/home/ecs-user/splitnn/infra/tmp",
-      "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23",
-      "kernFuncsToMonitor": [
-        ["setup", "cctr", "chroot_fs_refs"],
-        ["setup", "topo_setup_test", "wireless_nlevent_flush"],
-        ["setup", "topo_setup_test", "fib6_clean_tree"],
-        ["clean", "", "br_vlan_flush"]
-      ],
-      "server_best_bbns_factor": 2.353,
-      "phyicalMachineId": 1,
-      "phyicalMachineNodeCapacity": 15000
-    }
-  ]
-}
+Set the benchmark `b` values you want in `var_options["b"]`.
+
+Examples:
+
+- torus: `48`
+- fat-tree: `48`
+
+Do not enable the commented `p` list for benchmark runs.
+
+## Run
+
+From the control host:
+
+```bash
+cd /home/ecs-user/splitnn/driver
+python3 batch_test.py
 ```
 
-Notes:
+## Results
 
-- `runtimeDir` is set to `infra/tmp` so `driver/batch_test.py` can collect `setup_log.txt`, `clean_log.txt`, `link_log.txt`, and CPU/memory logs from the expected location
-- if the guest NIC is `ens3` instead of `eth0`, update `phyIntf` accordingly
+Collected results are stored under:
 
-## Cleanup Semantics
+```bash
+driver/raw_results/result-<server_num>-servers/
+```
 
-Current cleanup is optimized for the normal path:
+Typical files per server:
 
-- kill node/container processes first
-- delete only SplitNN-created backbone namespaces (`bbns*`)
-- rely on kernel namespace teardown to reclaim veth, bridge, and VXLAN devices
+- `setup_log.txt`
+- `clean_log.txt`
+- `link_log.txt`
+- `setup_cpu_mem_usage.txt`
+- `clean_cpu_mem_usage.txt`
 
-This is intended to work for both single-machine and multi-machine runs, because external VXLAN links are moved into SplitNN-managed backbone namespaces before normal execution proceeds.
+## Current Validated Four-Server Set
 
-## Operational Notes From Practice
+The latest validated set used for the recorded benchmark docs is:
 
-- `driver/batch_test.py` remote orchestration works for real multi-server torus runs.
-- For current reporting, use the best complete setup wall time seen for each torus scale.
-- If one remote host behaves abnormally, replacing that host and re-running can materially improve the result.
-- Normal cleanup removes `bbns*` fast, but `infra/tmp` logs remain unless explicitly deleted.
-- When a large run is interrupted, stale `bpftrace` or monitor scripts may need manual cleanup or a host reboot.
+- `47.87.129.103`
+- `8.220.75.44`
+- `8.209.103.4`
+- `47.87.132.233`
 
-## Current Known State
+## Current Recorded Results
 
-This setup has already verified:
+See:
 
-- `cloud-hypervisor` boots Debian guests correctly
-- KVM acceleration is in use
-- guest networking works
-- password SSH works
-- `sudo` works
-- `splitnn` torus topology generation for `30x30` is available
-
-The remaining operational work is only guest package installation plus the final `topo_setup_test` run.
+- [torus_benchmark_2026-03-03.md](/home/ecs-user/splitnn/docs/torus_benchmark_2026-03-03.md)
+- [fat_tree_benchmark_2026-03-11.md](/home/ecs-user/splitnn/docs/fat_tree_benchmark_2026-03-11.md)
