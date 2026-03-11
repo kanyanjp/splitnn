@@ -27,7 +27,7 @@ Only completed and validated runs are recorded below.
 | `k=20` | 128 | 56.35 | slower than `b=48` |
 | `k=24` | 48 | 89.11 | stable rerun result on the current server set |
 | `k=26` | 48 | 117.95 | current best verified result |
-| `k=28` | 48 | 180.94 | stable rerun result on the latest server set |
+| `k=28` | 48 | 171.19 | stable rerun result on the latest server set |
 | `k=30` | 48 | 195.60 | stable rerun result on the current server set |
 
 ## Latest k=20 Result (`b=48`)
@@ -79,10 +79,10 @@ Only completed and validated runs are recorded below.
 
 | Server | edgeSum | Node Setup (s) | Link Setup (s) | ExternalLinkOp (s) | Setup Total (s) |
 |---|---:|---:|---:|---:|---:|
-| `47.87.129.103` | 5566 | 5.15 | 148.45 | 105.12 | 162.57 |
-| `8.220.75.44` | 4168 | 5.15 | 114.64 | 81.29 | 128.74 |
-| `8.209.103.4` | 4726 | 4.64 | 127.27 | 95.63 | 141.29 |
-| `47.87.132.233` | 6142 | 5.06 | 166.45 | 124.24 | 180.94 |
+| `47.87.129.103` | 5566 | 4.76 | 148.32 | 105.36 | 153.33 |
+| `8.220.75.44` | 4168 | 4.94 | 113.16 | 80.76 | 118.37 |
+| `8.209.103.4` | 4726 | 4.62 | 126.91 | 95.59 | 131.78 |
+| `47.87.132.233` | 6142 | 4.69 | 166.24 | 124.43 | 171.19 |
 
 ## Notes
 
