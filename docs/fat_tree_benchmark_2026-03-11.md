@@ -25,7 +25,8 @@ Only completed and validated runs are recorded below.
 |---|---:|---:|---|
 | `k=20` | 48 | 47.00 | current best verified result |
 | `k=20` | 128 | 56.35 | slower than `b=48` |
-| `k=24` | 48 | 89.08 | current best verified result |
+| `k=24` | 48 | 89.11 | stable rerun result on the current server set |
+| `k=26` | 48 | 117.95 | current best verified result |
 
 ## Latest k=20 Result (`b=48`)
 
@@ -49,13 +50,23 @@ Only completed and validated runs are recorded below.
 
 | Server | edgeSum | Node Setup (s) | Link Setup (s) | ExternalLinkOp (s) | Setup Total (s) |
 |---|---:|---:|---:|---:|---:|
-| `8.211.30.34` | 3240 | 2.77 | 77.09 | 57.19 | 79.99 |
-| `47.245.148.67` | 3034 | 2.74 | 70.66 | 51.53 | 73.52 |
-| `47.87.129.89` | 3240 | 2.93 | 78.58 | 57.79 | 81.64 |
-| `47.245.151.90` | 3448 | 2.98 | 85.99 | 64.40 | 89.08 |
+| `8.211.30.34` | 3240 | 2.81 | 77.21 | 57.47 | 80.14 |
+| `47.245.148.67` | 3034 | 2.77 | 70.39 | 51.52 | 73.28 |
+| `47.87.129.89` | 3240 | 2.91 | 78.44 | 57.78 | 81.46 |
+| `47.245.151.90` | 3448 | 2.99 | 86.01 | 64.74 | 89.11 |
+
+## Latest k=26 Result (`b=48`)
+
+| Server | edgeSum | Node Setup (s) | Link Setup (s) | ExternalLinkOp (s) | Setup Total (s) |
+|---|---:|---:|---:|---:|---:|
+| `8.211.30.34` | 4009 | 3.80 | 100.13 | 74.30 | 104.11 |
+| `47.245.148.67` | 3780 | 3.46 | 91.04 | 66.08 | 94.67 |
+| `47.87.129.89` | 4426 | 3.90 | 113.88 | 83.14 | 117.95 |
+| `47.245.151.90` | 4266 | 3.85 | 112.70 | 83.98 | 116.73 |
 
 ## Notes
 
 - `Node setup time` is small in these runs; the dominant cost is `Link setup time`.
 - `ExternalLinkOp time` is much larger than in torus runs, which is the main reason fat-tree is slower.
-- `k=26` and `k=30` are not recorded yet in this document because there is no completed, validated rerun on the current four-server set.
+- `k=26` has a completed rerun on the current four-server set and is recorded above.
+- `k=30` is intentionally not recorded yet because the latest rerun showed abnormal `Node setup time` spikes on two servers.
