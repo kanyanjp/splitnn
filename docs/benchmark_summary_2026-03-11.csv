@@ -1,0 +1,9 @@
+topology_family,topology_label,topology_params,nodes,links,b,node_manager,link_manager,server_count,best_setup_wall_s,source_doc
+torus,torus_40x50,"dims=40x50",2000,4000,48,cctr,ntlbr,4,15.08,docs/torus_benchmark_2026-03-03.md
+torus,torus_50x80,"dims=50x80",4000,8000,48,cctr,ntlbr,4,28.76,docs/torus_benchmark_2026-03-03.md
+torus,torus_75x80,"dims=75x80",6000,12000,48,cctr,ntlbr,4,49.14,docs/torus_benchmark_2026-03-03.md
+torus,torus_80x100,"dims=80x100",8000,16000,48,cctr,ntlbr,4,74.74,docs/torus_benchmark_2026-03-03.md
+fat_tree,fat_tree_k20,"k=20",2500,6000,48,cctr,ntlbr,4,47.00,docs/fat_tree_benchmark_2026-03-11.md
+fat_tree,fat_tree_k24,"k=24",4104,10368,48,cctr,ntlbr,4,89.11,docs/fat_tree_benchmark_2026-03-11.md
+fat_tree,fat_tree_k26,"k=26",5200,13182,48,cctr,ntlbr,4,117.95,docs/fat_tree_benchmark_2026-03-11.md
+fat_tree,fat_tree_k30,"k=30",7875,20250,48,cctr,ntlbr,4,195.60,docs/fat_tree_benchmark_2026-03-11.md
