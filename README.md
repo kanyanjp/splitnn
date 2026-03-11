@@ -45,8 +45,8 @@ If you only want the important entry points, start here:
 - `infra/code/network/cctrManager.go`
   Node/container manager used by the current workflow.
 
-- `docs/cloud_hypervisor_splitnn.md`
-  VM-oriented workflow, including cloning and remote-driver notes.
+- `docs/horizontal_scaling_splitnn.md`
+  Recommended base-image and horizontal-scaling workflow, including remote-driver notes.
 
 - `docs/local_benchmark.md`
   Single-machine benchmark workflow.
@@ -247,4 +247,4 @@ Important current behavior:
 ## More Detailed Docs
 
 - `docs/local_benchmark.md`
-- `docs/cloud_hypervisor_splitnn.md`
+- `docs/horizontal_scaling_splitnn.md`

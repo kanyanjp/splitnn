@@ -1,10 +1,10 @@
-# Cloud Hypervisor VM Workflow
+# SplitNN Horizontal Scaling Workflow
 
-This document records the minimal workflow for running `splitnn` on Debian VMs started by `cloud-hypervisor`.
+This document records the practical workflow for preparing one guest as a base image, cloning it horizontally, and running `splitnn` remotely across multiple guest nodes.
 
 ## Scope
 
-- Host hypervisor: `cloud-hypervisor`
+- Guest expansion model: one prepared base image cloned into multiple guests
 - Guest OS: Debian 12 cloud image
 - Verified shape: 2 VMs on one host
 - Verified guest IPs:
@@ -16,7 +16,11 @@ This document records the minimal workflow for running `splitnn` on Debian VMs s
 
 `splitnn` treats each VM as a `server`. The emulated topology nodes are still created inside each VM through namespaces, veth pairs, bridges, VXLAN devices, and `cctr`.
 
-## Layout
+## Reference Environment
+
+One validated way to create the initial base image is with `cloud-hypervisor`, but the remote SplitNN workflow below is not specific to `cloud-hypervisor`. Any method that gives you multiple Linux guests with stable IPs, SSH access, and the same filesystem layout works.
+
+## Example Layout
 
 Host-side helper files are stored under:
 
@@ -33,9 +37,9 @@ Recommended repo path inside each guest:
 
 - `/home/ccds/work/splitnn`
 
-## Host Preparation
+## Example Base-Image Preparation With Cloud Hypervisor
 
-Install and verify `cloud-hypervisor` on the host:
+If you use `cloud-hypervisor` for the initial base-image workflow, install and verify it on the host:
 
 ```bash
 mise use -g aqua:cloud-hypervisor/cloud-hypervisor
@@ -60,7 +64,7 @@ This creates:
 - bridge IP: `192.168.249.1/24`
 - tap devices: `chtap0`, `chtap1`
 
-## Guest Image Preparation
+## Example Guest Image Preparation
 
 Download the Debian cloud image once:
 
@@ -94,7 +98,7 @@ The current seed data configures:
 - password SSH enabled
 - passwordless `sudo`
 
-## Start VMs
+## Example Guest Boot
 
 Start VM1:
 
@@ -124,7 +128,7 @@ ssh ccds@192.168.249.11
 ssh ccds@192.168.249.12
 ```
 
-## Use China Mirrors In Guests
+## Configure Guest Packages
 
 For guest package installation, use the Tsinghua mirror:
 
@@ -271,7 +275,7 @@ sudo ./bin/topo_setup_test \
   -i 0
 ```
 
-## Multi-VM Driver Use
+## Multi-Guest Driver Use
 
 For `driver/server_config.json`, set the VM addresses and guest NIC name:
 
