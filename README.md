@@ -90,3 +90,7 @@ See [docs/local_benchmark.md](docs/local_benchmark.md) for:
 - residual resource cleanup commands
 - reproducibility checklist
 - table template for recording results
+
+## Cloud Hypervisor Guide
+
+For running `splitnn` on Debian VMs started by `cloud-hypervisor`, including fixed-IP guest setup and a `30x30` torus workflow, see [docs/cloud_hypervisor_splitnn.md](docs/cloud_hypervisor_splitnn.md).
