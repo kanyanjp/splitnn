@@ -72,6 +72,11 @@ Recommended values for cloned servers:
 - `infraWorkDir`: `/home/ecs-user/splitnn/infra`
 - `runtimeDir`: `/home/ecs-user/splitnn/infra/tmp`
 
+Use `phyicalMachineId` carefully:
+
+- if you only want the currently validated remote benchmark path, you can keep all servers under one PM and run METIS-only partitioning
+- if you want the original PM-aware two-layer partitioning from upstream, `phyicalMachineId` must reflect real physical-machine groups
+
 ## Important Code Reality
 
 Current [batch_test.py](/home/ecs-user/splitnn/driver/batch_test.py) does more than just run remote setup:
@@ -87,6 +92,8 @@ Also note:
 - `var_options["t"]` in [batch_test.py](/home/ecs-user/splitnn/driver/batch_test.py) is not pre-filled for your benchmark cases
 - `b` in [batch_test.py](/home/ecs-user/splitnn/driver/batch_test.py) is not set to the benchmark values by default
 - `-p > 0` is currently buggy in parallel link setup and should not be used for benchmark runs
+- original PM-aware partitioning also requires a working local TBS installation and a Gurobi license large enough for the TBS initializer on your target graph size
+- without that TBS path, the practical benchmark workflow is METIS-only partitioning across the configured servers
 
 For stable benchmark runs, keep:
 

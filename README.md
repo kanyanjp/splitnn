@@ -22,6 +22,11 @@ This matches the current codebase because:
 - cleanup is optimized around process kill plus namespace deletion
 - benchmark docs in `docs/` already reflect this workflow
 
+One current limitation matters for partitioning:
+
+- the fully original upstream PM-aware path needs local TBS plus a usable Gurobi-backed initializer
+- the recorded remote benchmark numbers in this repo are therefore based on the practical METIS-only server partitioning path unless explicitly stated otherwise
+
 ## Key Files
 
 If you only want the important entry points, start here:
