@@ -25,9 +25,9 @@ Only completed and validated runs are recorded below.
 |---|---:|---:|---|
 | `k=20` | 48 | 47.00 | current best verified result |
 | `k=20` | 128 | 56.35 | slower than `b=48` |
-| `k=24` | 48 | 89.11 | stable rerun result on the current server set |
+| `k=24` | 48 | 89.08 | fastest recorded result; later rerun reproduced `89.11s` |
 | `k=26` | 48 | 117.95 | current best verified result |
-| `k=28` | 48 | 171.19 | stable rerun result on the latest server set |
+| `k=28` | 48 | 171.19 | fastest recorded result on the latest server set |
 | `k=30` | 48 | 195.60 | stable rerun result on the current server set |
 
 ## Latest k=20 Result (`b=48`)
