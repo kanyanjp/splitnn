@@ -287,6 +287,137 @@ If both VMs run on the same host and you do not want to model multiple physical 
 
 for both entries.
 
+## Base Image For Horizontal Cloning
+
+If you want to take one prepared guest OS as a base image and clone it into 4 guests for remote testing:
+
+1. prepare one guest fully
+2. install runtime packages inside the guest
+3. clone the guest disk/image 4 times
+4. assign different guest IP addresses
+5. keep the same guest username/password on all 4 guests
+6. update only `ipAddr` and `phyicalMachineId` fields in `driver/server_config.json`
+
+Recommended common guest settings across all clones:
+
+- same repo path, for example `/home/ccds/work/splitnn`
+- same guest user
+- same SSH password
+- same NIC name, for example `ens3`
+- same runtime package set
+
+Only these values should differ between clones:
+
+- `ipAddr`
+- hostname
+- any physical-machine grouping you want to model via `phyicalMachineId`
+
+## Password SSH For Remote Driver
+
+`driver/util/remote.py` uses Paramiko password SSH, so a simple and reproducible setup is:
+
+- enable `PasswordAuthentication yes` in `sshd`
+- create one strong random password for the guest user
+- keep that password identical across all cloned guests
+
+This makes it easy to scale a base image into multiple remote `server` nodes without managing per-node SSH keys.
+
+Example `driver/server_config.json` pattern for 4 cloned guests:
+
+```json
+{
+  "servers": [
+    {
+      "ipAddr": "10.0.0.11",
+      "user": "ecs-user",
+      "password": "REPLACE_WITH_SHARED_STRONG_PASSWORD",
+      "phyIntf": "eth0",
+      "infraWorkDir": "/home/ecs-user/splitnn/infra",
+      "runtimeDir": "/home/ecs-user/splitnn/infra/tmp",
+      "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23",
+      "kernFuncsToMonitor": [
+        ["setup", "cctr", "chroot_fs_refs"],
+        ["setup", "topo_setup_test", "wireless_nlevent_flush"],
+        ["setup", "topo_setup_test", "fib6_clean_tree"],
+        ["clean", "", "br_vlan_flush"]
+      ],
+      "server_best_bbns_factor": 2.353,
+      "phyicalMachineId": 0,
+      "phyicalMachineNodeCapacity": 15000
+    },
+    {
+      "ipAddr": "10.0.0.12",
+      "user": "ecs-user",
+      "password": "REPLACE_WITH_SHARED_STRONG_PASSWORD",
+      "phyIntf": "eth0",
+      "infraWorkDir": "/home/ecs-user/splitnn/infra",
+      "runtimeDir": "/home/ecs-user/splitnn/infra/tmp",
+      "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23",
+      "kernFuncsToMonitor": [
+        ["setup", "cctr", "chroot_fs_refs"],
+        ["setup", "topo_setup_test", "wireless_nlevent_flush"],
+        ["setup", "topo_setup_test", "fib6_clean_tree"],
+        ["clean", "", "br_vlan_flush"]
+      ],
+      "server_best_bbns_factor": 2.353,
+      "phyicalMachineId": 0,
+      "phyicalMachineNodeCapacity": 15000
+    },
+    {
+      "ipAddr": "10.0.0.13",
+      "user": "ecs-user",
+      "password": "REPLACE_WITH_SHARED_STRONG_PASSWORD",
+      "phyIntf": "eth0",
+      "infraWorkDir": "/home/ecs-user/splitnn/infra",
+      "runtimeDir": "/home/ecs-user/splitnn/infra/tmp",
+      "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23",
+      "kernFuncsToMonitor": [
+        ["setup", "cctr", "chroot_fs_refs"],
+        ["setup", "topo_setup_test", "wireless_nlevent_flush"],
+        ["setup", "topo_setup_test", "fib6_clean_tree"],
+        ["clean", "", "br_vlan_flush"]
+      ],
+      "server_best_bbns_factor": 2.353,
+      "phyicalMachineId": 1,
+      "phyicalMachineNodeCapacity": 15000
+    },
+    {
+      "ipAddr": "10.0.0.14",
+      "user": "ecs-user",
+      "password": "REPLACE_WITH_SHARED_STRONG_PASSWORD",
+      "phyIntf": "eth0",
+      "infraWorkDir": "/home/ecs-user/splitnn/infra",
+      "runtimeDir": "/home/ecs-user/splitnn/infra/tmp",
+      "dockerImageName": "public.ecr.aws/docker/library/alpine:3.23",
+      "kernFuncsToMonitor": [
+        ["setup", "cctr", "chroot_fs_refs"],
+        ["setup", "topo_setup_test", "wireless_nlevent_flush"],
+        ["setup", "topo_setup_test", "fib6_clean_tree"],
+        ["clean", "", "br_vlan_flush"]
+      ],
+      "server_best_bbns_factor": 2.353,
+      "phyicalMachineId": 1,
+      "phyicalMachineNodeCapacity": 15000
+    }
+  ]
+}
+```
+
+Notes:
+
+- `runtimeDir` is set to `infra/tmp` so `driver/batch_test.py` can collect `setup_log.txt`, `clean_log.txt`, `link_log.txt`, and CPU/memory logs from the expected location
+- if the guest NIC is `ens3` instead of `eth0`, update `phyIntf` accordingly
+
+## Cleanup Semantics
+
+Current cleanup is optimized for the normal path:
+
+- kill node/container processes first
+- delete only SplitNN-created backbone namespaces (`bbns*`)
+- rely on kernel namespace teardown to reclaim veth, bridge, and VXLAN devices
+
+This is intended to work for both single-machine and multi-machine runs, because external VXLAN links are moved into SplitNN-managed backbone namespaces before normal execution proceeds.
+
 ## Current Known State
 
 This setup has already verified:

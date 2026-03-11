@@ -1,50 +1,204 @@
 # SplitNN
 
-SplitNN is a virtual network construction framework used to benchmark large-scale emulation setup/cleanup performance.
+SplitNN is a virtual network construction framework for benchmarking large-scale emulation setup and cleanup performance across one or more Linux servers or VMs.
 
-## Key Directories
+## Recommended Usage
 
-- `infra/`: core executor (`topo_setup_test`) that performs network setup/cleanup on one machine/VM.
-- `driver/`: experiment orchestrator for multi-machine and batch runs.
-- `dataproc/`: plotting and result post-processing scripts.
+The current recommended workflow is:
 
-## Quick Start (Single-Machine Benchmark)
+1. prepare one Linux guest or server as the base environment
+2. install SplitNN runtime dependencies there
+3. clone that base image horizontally into multiple guests
+4. keep the same guest username/password across all clones
+5. assign different IP addresses to each clone
+6. use `driver/batch_test.py` from one control host to push topology, execute remote setup/clean, and collect logs
 
-Use this for fast local benchmarking.
+This is the best match for the current codebase because:
 
-1. Install runtime and build dependencies (Linux):
+- `driver/` already implements remote orchestration over SSH
+- each guest is treated as one `server`
+- result collection is already wired around `infra/tmp/`
+- normal cleanup is optimized around process kill plus namespace deletion
 
-- `go` (1.20+ recommended)
-- `gcc`
-- `make`
-- `python3`
-- `iproute2` (`ip` command)
+## Key Files
+
+If you only want the important entry points, start here:
+
+- `driver/batch_test.py`
+  Remote multi-server test entry. Connects to each guest, prepares topology, runs `setup`/`clean`, and collects results.
+
+- `driver/server_config.json`
+  Multi-server configuration file. Set guest IPs, shared SSH credentials, NIC name, `infraWorkDir`, `runtimeDir`, and `phyicalMachineId` here.
+
+- `infra/bin/topo_setup_test`
+  Core runtime binary executed on each server or guest.
+
+- `infra/server_config_local.json`
+  Single-machine or single-guest local config for direct `infra` testing.
+
+- `infra/code/network/netManage.go`
+  Main setup/clean orchestration logic.
+
+- `infra/code/network/ntlBrManager.go`
+  Link manager implementation for bridges, veths, and VXLAN handling.
+
+- `infra/code/network/cctrManager.go`
+  Node/container manager used by the current workflow.
+
+- `docs/cloud_hypervisor_splitnn.md`
+  VM-oriented workflow, including cloning and remote-driver notes.
+
+- `docs/local_benchmark.md`
+  Single-machine benchmark workflow.
+
+## Directory Layout
+
+- `infra/`
+  Core executor that performs actual network setup and cleanup on one machine or VM.
+
+- `driver/`
+  Remote orchestration, topology generation, partitioning, and result collection.
+
+- `dataproc/`
+  Plotting and result post-processing scripts.
+
+## Remote Multi-Guest Workflow
+
+Use this when you have multiple cloned VMs or servers and want to operate them remotely from one control node.
+
+### 1. Prepare each guest
+
+Install runtime dependencies on every guest:
+
+- `iproute2`
 - `podman`
 - `skopeo`
 - `umoci`
 - `bpftrace`
-- `sudo` privilege for network namespace and link operations
+- `sudo`
 
-2. Build `infra` binary:
+If you also want each guest to build `infra`, install:
+
+- `git`
+- `golang`
+- `gcc`
+- `make`
+- `python3`
+
+### 2. Keep one shared SSH credential
+
+`driver/util/remote.py` uses Paramiko password SSH. The simplest scalable setup is:
+
+- one shared guest username
+- one strong shared password
+- password SSH enabled on all cloned guests
+
+Only guest IP addresses need to differ.
+
+### 3. Configure remote servers
+
+Edit `driver/server_config.json`.
+
+Important fields:
+
+- `ipAddr`
+- `user`
+- `password`
+- `phyIntf`
+- `infraWorkDir`
+- `runtimeDir`
+- `phyicalMachineId`
+
+Recommended setting:
+
+- `runtimeDir` should be `.../infra/tmp`
+
+This matches the current remote result collection behavior in `driver/batch_test.py`.
+
+### 4. Run the remote batch driver
+
+From the control host:
+
+```bash
+cd driver
+python3 batch_test.py
+```
+
+The driver will:
+
+- connect to all configured guests
+- send `server_config.json`
+- generate and partition topology
+- send each sub-topology to the target guest
+- run remote `setup`
+- run remote `clean`
+- collect logs back into `driver/raw_results/`
+
+### 5. Read remote results
+
+Collected outputs are stored under:
+
+```bash
+driver/raw_results/result-<server_num>-servers/
+```
+
+Typical files per server:
+
+- `setup_log.txt`
+- `clean_log.txt`
+- `link_log.txt`
+- `setup_cpu_mem_usage.txt`
+- `clean_cpu_mem_usage.txt`
+
+## Single-Machine Workflow
+
+Use this when you want to test one machine or one guest directly without the remote driver.
+
+### 1. Install dependencies
+
+- `go`
+- `gcc`
+- `make`
+- `python3`
+- `iproute2`
+- `podman`
+- `skopeo`
+- `umoci`
+- `bpftrace`
+
+### 2. Build
 
 ```bash
 cd infra
 make
 ```
 
-3. Use local config:
+### 3. Fix local config
 
-- `infra/server_config_local.json` should point `infraWorkDir` to your local repo path.
-- `runtimeDir` should point to a writable runtime path in-repo (recommended: `infra/runtime`).
-- Topology files are in `infra/runtime/topo/` (for example `grid_20_25.txt`, `grid_25_40.txt`, `grid_40_50.txt`, `grid_50_80.txt`).
+Update `infra/server_config_local.json` so that:
 
-4. Run one setup test:
+- `infraWorkDir` points to your local `infra/`
+- `runtimeDir` points to a writable in-repo runtime path
+- `phyIntf` matches the local NIC name
+
+### 4. Generate a torus topology
+
+Example `20x20` torus:
+
+```bash
+mkdir -p infra/runtime/topo
+python3 driver/scripts/topo/generate_grid_topo.py 20 20 infra/runtime/topo/grid_20_20.txt
+```
+
+The current `grid` generator wraps dimensions, so it behaves as a torus generator in practice.
+
+### 5. Run setup and clean
 
 ```bash
 cd infra
 sudo ./bin/topo_setup_test \
   -o setup \
-  -t runtime/topo/grid_25_40.txt \
+  -t runtime/topo/grid_20_20.txt \
   -b 24 \
   -a naive \
   -d 0 \
@@ -52,15 +206,10 @@ sudo ./bin/topo_setup_test \
   -l ntlbr \
   -s server_config_local.json \
   -i 0
-```
 
-5. Cleanup immediately after each run:
-
-```bash
-cd infra
 sudo ./bin/topo_setup_test \
   -o clean \
-  -t runtime/topo/grid_25_40.txt \
+  -t runtime/topo/grid_20_20.txt \
   -b 24 \
   -a naive \
   -d 0 \
@@ -70,27 +219,32 @@ sudo ./bin/topo_setup_test \
   -i 0
 ```
 
-6. Read timing results:
+Logs:
 
-- `infra/runtime/setup_log.txt`: `Node setup time`, `Link setup time`, `Network operation time`
-- `infra/runtime/clean_log.txt`: cleanup timing
+- `infra/runtime/setup_log.txt`
+- `infra/runtime/clean_log.txt`
 
-## Minimal Benchmark Playbook
+## Cleanup Model
 
-- For `b` scan: run fixed topology (for example `grid_20_25`) with varying `-b`, compare `Network operation time`.
-- For scaling test: keep flags fixed and run `500 -> 1k -> 2k -> 4k`.
-- Recommended between runs: cleanup, optional `sleep 10`, then next setup.
+The current normal cleanup path is intentionally simple:
 
-## Full Local Benchmark Guide
+- kill node/container processes
+- delete SplitNN-created backbone namespaces (`bbns*`)
+- rely on kernel namespace teardown to reclaim veth, bridge, and VXLAN devices
 
-See [docs/local_benchmark.md](docs/local_benchmark.md) for:
+This behavior is implemented in:
 
-- exact commands
-- environment setup and compile steps
-- residual resource cleanup commands
-- reproducibility checklist
-- table template for recording results
+- `infra/code/network/netManage.go`
+- `infra/code/network/cctrManager.go`
+- `infra/code/network/ntlBrManager.go`
 
-## Cloud Hypervisor Guide
+Important current behavior:
 
-For running `splitnn` on Debian VMs started by `cloud-hypervisor`, including fixed-IP guest setup and a `30x30` torus workflow, see [docs/cloud_hypervisor_splitnn.md](docs/cloud_hypervisor_splitnn.md).
+- cleanup no longer deletes every network namespace on the machine
+- backbone cleanup is limited to SplitNN-created namespaces
+- explicit per-link deletion is not part of the normal fast cleanup path
+
+## More Detailed Docs
+
+- `docs/local_benchmark.md`
+- `docs/cloud_hypervisor_splitnn.md`

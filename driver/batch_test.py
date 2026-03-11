@@ -31,8 +31,8 @@ REMOTE_RESULT_PATHS = [
     # ("dir", "tmp/cctr_log"),
     # ("dir", "tmp/kern_func"),
     # ("dir", "tmp/cctr_time.txt"),
-    ("dir", "tmp/setup_cpu_mem_usage.txt"),
-    ("dir", "tmp/clean_cpu_mem_usage.txt"),
+    ("file", "tmp/setup_cpu_mem_usage.txt"),
+    ("file", "tmp/clean_cpu_mem_usage.txt"),
 ]
 
 ######################### Command options ############################

@@ -3,10 +3,11 @@ package network
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"strconv"
 	"sync"
 	"time"
@@ -90,45 +91,14 @@ func (lm *NtlBrLinkManager) EnterBbNs(bbnsIndex int) (netns.NsHandle, error) {
 }
 
 func (lm *NtlBrLinkManager) CleanAllBbNs() error {
-	// var origNs, bbnsHandle netns.NsHandle
-	// var err error
-
-	// origNs, err = netns.Get()
-	// if err != nil {
-	// 	fmt.Printf("failed to netns.Get of origNs: %s\n", err)
-	// 	return err
-	// }
-
-	// /* Disable bbns ipv6 */
-	// bbnsNames := getAllBbNs()
-	// for _, bbnsName := range bbnsNames {
-	// 	bbnsHandle, err = netns.GetFromName(bbnsName)
-	// 	if err != nil {
-	// 		return fmt.Errorf("error when getting bbns handle, %v", err)
-	// 	}
-	// 	fmt.Printf("Disable ipv6 for bbns: %s\n", bbnsName)
-	// 	err = netns.Set(bbnsHandle)
-	// 	if err != nil {
-	// 		fmt.Printf("failed to netns.Set to bbns: %s\n", err)
-	// 		return err
-	// 	}
-	// 	err = disableIpv6ForCurNetns()
-	// 	if err != nil {
-	// 		fmt.Printf("failed to disableIpv6ForCurNetns for bbns: %s\n", err)
-	// 		return err
-	// 	}
-	// }
-	// err = netns.Set(origNs)
-	// if err != nil {
-	// 	fmt.Printf("failed to netns.Set to origNs: %s\n", err)
-	// 	return err
-	// }
-
-	/* Destroy all netns */
-	destroyCommand := exec.Command(
-		"ip", "-all", "netns", "del")
-	destroyCommand.Stdout = os.Stdout
-	destroyCommand.Run()
+	for _, bbnsName := range getAllBbNs() {
+		destroyCommand := exec.Command("ip", "netns", "del", bbnsName)
+		destroyCommand.Stdout = os.Stdout
+		destroyCommand.Stderr = os.Stderr
+		if err := destroyCommand.Run(); err != nil {
+			return fmt.Errorf("failed to delete netns %s: %w", bbnsName, err)
+		}
+	}
 	return nil
 }
 
@@ -469,16 +439,21 @@ func getAllBbNs() []string {
 	files, err := ioutil.ReadDir(netnsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Fatalf("Network namespace directory does not exist: %v", err)
+			return nil
 		}
-		log.Fatalf("Error reading %s: %v", netnsDir, err)
+		fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", netnsDir, err)
+		return nil
 	}
 
 	// Collect namespace names
 	var namespaces []string
 	for _, file := range files {
-		if !file.IsDir() {
-			namespaces = append(namespaces, file.Name())
+		if file.IsDir() {
+			continue
+		}
+		name := file.Name()
+		if strings.HasPrefix(name, "bbns") {
+			namespaces = append(namespaces, filepath.Base(name))
 		}
 	}
 
