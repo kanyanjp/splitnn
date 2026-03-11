@@ -29,7 +29,78 @@ def create_metis_adjacency_list(nodes, adjacency_list):
     return metis_adjacency_list, node_to_index, index_to_node
 
 
-def partition_graph_across_vm(nodes, adjacency_list, num_partitions, acc_server_num, random=False):
+def evaluate_partition_balance(nodes, adjacency_list, parts, num_partitions):
+    """Score a partition using the same edgeSum notion used by generated sub-topologies."""
+    node_to_index = {node: idx for idx, node in enumerate(nodes)}
+    internal_edges = [0] * num_partitions
+    dangling_edges = [0] * num_partitions
+    for u in nodes:
+        for v in adjacency_list[u]:
+            if u >= v:
+                continue
+            u_part = parts[node_to_index[u]]
+            v_part = parts[node_to_index[v]]
+            if u_part == v_part:
+                internal_edges[u_part] += 1
+            else:
+                dangling_edges[u_part] += 1
+                dangling_edges[v_part] += 1
+    edge_sum = [
+        internal_edges[i] + dangling_edges[i] for i in range(num_partitions)
+    ]
+    avg_edge_sum = sum(edge_sum) / num_partitions
+    imbalance_pct = 0.0
+    if avg_edge_sum > 0:
+        imbalance_pct = (max(edge_sum) - min(edge_sum)) / avg_edge_sum * 100
+    return {
+        "edge_sum": edge_sum,
+        "imbalance_pct": imbalance_pct,
+        "max_edge_sum": max(edge_sum),
+    }
+
+
+def get_fat_tree_metis_candidates():
+    """Candidate METIS option sets tuned for 4-way fat-tree partitioning."""
+    return [
+        {
+            "name": "default_recursive",
+            "opts": {
+                "recursive": True,
+                "niter": 20,
+            },
+        },
+        {
+            "name": "fat_tree_recursive_balance",
+            "opts": {
+                "recursive": True,
+                "ctype": "rm",
+                "iptype": "grow",
+                "rtype": "fm",
+                "ncuts": 8,
+                "niter": 40,
+                "ufactor": 30,
+                "seed": 1,
+            },
+        },
+    ]
+
+
+def run_metis_partition(metis_adjacency_list, num_partitions, random=False, **opts):
+    while True:
+        try:
+            local_opts = dict(opts)
+            if random and "seed" not in local_opts:
+                local_opts["seed"] = int(np.random.randint(0, 100))
+            return metis.part_graph(
+                metis_adjacency_list, nparts=num_partitions, **local_opts
+            )
+        except metis.METIS_InputError as e:
+            print(f"METIS Input Error: {e}")
+            print("Retrying with a different seed...")
+            continue
+
+
+def partition_graph_across_vm(nodes, adjacency_list, num_partitions, acc_server_num, random=False, topo_hint=None):
     """Partitions the graph into num_partitions using METIS and writes each subgraph."""
     node2serverid = {}
     if num_partitions == 1:
@@ -42,21 +113,43 @@ def partition_graph_across_vm(nodes, adjacency_list, num_partitions, acc_server_
     start_time = time.time()
     metis_adjacency_list, node_to_index, index_to_node = create_metis_adjacency_list(nodes, adjacency_list)
 
-    # Partition the graph into num_partitions parts using METIS
-    # print("Calling metis.part_graph...")    # start_time = time.time()
-    while True:
-        try:
-            if random:
-                # Generate an random integer as seed
-                seed = int(np.random.randint(0, 100))
-                _, parts = metis.part_graph(metis_adjacency_list, nparts=num_partitions, niter=20, recursive=True, seed=seed)
-            else:
-                _, parts = metis.part_graph(metis_adjacency_list, nparts=num_partitions, niter=20, recursive=True)
-            break
-        except metis.METIS_InputError as e:
-            print(f"METIS Input Error: {e}")
-            print("Retrying with a different seed...")
-            continue
+    # Partition the graph into num_partitions parts using METIS.
+    if topo_hint == "clos" and num_partitions == 4:
+        best_result = None
+        for candidate in get_fat_tree_metis_candidates():
+            objval, parts = run_metis_partition(
+                metis_adjacency_list, num_partitions, random=random, **candidate["opts"]
+            )
+            balance = evaluate_partition_balance(
+                nodes, adjacency_list, parts, num_partitions
+            )
+            result = {
+                "name": candidate["name"],
+                "objval": objval,
+                "parts": parts,
+                **balance,
+            }
+            if best_result is None or (
+                result["imbalance_pct"],
+                result["max_edge_sum"],
+                result["objval"],
+            ) < (
+                best_result["imbalance_pct"],
+                best_result["max_edge_sum"],
+                best_result["objval"],
+            ):
+                best_result = result
+        print(
+            "Selected fat-tree METIS options:",
+            best_result["name"],
+            f"edgeSum={best_result['edge_sum']}",
+            f"imbalance={best_result['imbalance_pct']:.2f}%",
+        )
+        parts = best_result["parts"]
+    else:
+        _, parts = run_metis_partition(
+            metis_adjacency_list, num_partitions, random=random, niter=20, recursive=True
+        )
     # print("Partitioning completed. Time-cost: ", time.time() - start_time)
 
     for idx, part in enumerate(parts):

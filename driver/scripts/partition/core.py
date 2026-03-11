@@ -1,3 +1,5 @@
+import os
+
 from .fmt_util import *
 from .partition_topo_vm import partition_graph_across_vm
 from .partition_topo_pm import partition_graph_across_pm
@@ -8,6 +10,8 @@ def partition_topo(input_topo_filepath, server_config_list):
     INPUT: A file "xxx.txt" indicating the topology.
     OUTPUT: A series of files "xxx.sub0.txt", "xxx.sub1.txt", ..., "xxx.subN.txt" indicating the sub-topologies.
     """
+    topo_hint = os.path.basename(input_topo_filepath).split('_')[0]
+
     # Read the topology file
     nodes, adjacency_list = read_graph_from_topo_file(input_topo_filepath)
 
@@ -54,7 +58,7 @@ def partition_topo(input_topo_filepath, server_config_list):
     def partition_vm_task(pm_id, pmid2nodes, pmid2adjacencylist, pm_server_num, acc_server_num):
         # print(f"Partitioning with PM #{pm_id}...")
         return partition_graph_across_vm(
-            pmid2nodes[pm_id], pmid2adjacencylist[pm_id], pm_server_num, acc_server_num
+            pmid2nodes[pm_id], pmid2adjacencylist[pm_id], pm_server_num, acc_server_num, topo_hint=topo_hint
         )
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = []
@@ -89,11 +93,10 @@ def partition_topo(input_topo_filepath, server_config_list):
     # Calculate and print TDF of TBS-METIS and METIS
     tbs_metis_node2server_id = node2serverid
     metis_node2server_id = partition_graph_across_vm(
-        nodes, adjacency_list, len(server_config_list), 0)
+        nodes, adjacency_list, len(server_config_list), 0, topo_hint=topo_hint)
     tbs_metis_tdf = compute_tdf(nodes, adjacency_list, tbs_metis_node2server_id, serverid2pmid)
     metis_tdf = compute_tdf(nodes, adjacency_list, metis_node2server_id, serverid2pmid)
 
     print(f"TDF of TBS-METIS: {tbs_metis_tdf}")
     print(f"TDF of METIS: {metis_tdf}")
-
     return tbs_metis_tdf, metis_tdf

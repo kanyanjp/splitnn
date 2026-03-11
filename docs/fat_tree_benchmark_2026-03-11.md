@@ -89,3 +89,33 @@ Only completed and validated runs are recorded below.
 - `Node setup time` is small in these runs; the dominant cost is `Link setup time`.
 - `ExternalLinkOp time` is much larger than in torus runs, which is the main reason fat-tree is slower.
 - `k=26`, `k=28`, and `k=30` all have completed reruns and are recorded above.
+
+## METIS Tuning For Fat-Tree
+
+The repo now keeps a fat-tree-specific METIS tuning path for `clos` when partitioning into `4` servers.
+
+Tuned METIS options:
+
+- `recursive=True`
+- `ctype='rm'`
+- `iptype='grow'`
+- `rtype='fm'`
+- `ncuts=8`
+- `niter=40`
+- `ufactor=30`
+- `seed=1`
+
+Selection policy:
+
+- only applied to `clos`
+- only applied for `4`-way VM partitioning
+- the code compares a small candidate set and keeps the result with the best `edgeSum` balance
+
+Offline partition-only validation with generated `clos` topologies:
+
+| Topology | Previous edgeSum | Tuned edgeSum | Imbalance Improvement |
+|---|---|---|---:|
+| `k=20` | `1960,1901,1827,1831` | `1880,1850,1885,1885` | `7.08% -> 1.87%` |
+| `k=24` | `3240,3240,3034,3448` | `3240,3240,3240,3240` | `12.78% -> 0.00%` |
+| `k=28` | `5566,4168,4726,6142` | `5145,5145,5145,5145` | `38.33% -> 0.00%` |
+| `k=30` | `6780,6467,5605,6467` | `6565,5928,6681,6159` | `18.56% -> 11.89%` |

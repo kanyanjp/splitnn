@@ -94,6 +94,7 @@ Also note:
 - `-p > 0` is currently buggy in parallel link setup and should not be used for benchmark runs
 - original PM-aware partitioning also requires a working local TBS installation and a Gurobi license large enough for the TBS initializer on your target graph size
 - without that TBS path, the practical benchmark workflow is METIS-only partitioning across the configured servers
+- `clos` now has a small built-in METIS tuning path for better 4-way fat-tree balance; other topologies still use the original default METIS path
 
 For stable benchmark runs, keep:
 
